@@ -1,3 +1,4 @@
+import os
 import sys
 
 from .chunking import chunk_document
@@ -7,7 +8,7 @@ from .parent_store import save_parents
 from .sparse import BM25Vocab
 from .vectorstore import ensure_collection, get_client, upsert_children
 
-SPARSE_VOCAB_PATH = "sparse_vocab.json"
+SPARSE_VOCAB_PATH = os.getenv("SPARSE_VOCAB_PATH", "sparse_vocab.json")
 BATCH_SIZE = 96  # Cohere embed batch limit is generous, but keep requests moderate
 
 

@@ -3,7 +3,11 @@ pytesseract>=0.3.10
 Pillow>=10.0
 hazm
 requests>=2.31
-sentence-transformers>=3.0
+# jina-embeddings-v3's trust_remote_code LoRA module requires the transformers
+# version it was built against — newer major versions break on load
+# ('XLMRobertaLoRA' has no attribute 'all_tied_weights_keys').
+sentence-transformers==3.1.0
+transformers==4.41.2
 qdrant-client>=1.9
 cohere>=5.5
 openai>=1.30

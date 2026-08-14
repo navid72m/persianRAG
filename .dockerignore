@@ -1,0 +1,9 @@
+.git
+.env
+.streamlit/secrets.toml
+__pycache__
+*.pyc
+*.log
+.DS_Store
+parents.sqlite
+sparse_vocab.json

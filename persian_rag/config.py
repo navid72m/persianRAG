@@ -70,7 +70,7 @@ class Config:
 
     # --- retrieval ---
     collection_name: str = "persian_doc_children"
-    parent_db_path: str = "parents.sqlite"
+    parent_db_path: str = _secret("PARENT_DB_PATH", "parents.sqlite")
     retrieve_top_k: int = 20          # per (sub-)query, before rerank
     rerank_top_k: int = 5             # parents kept for generation
     max_sub_queries: int = 4
