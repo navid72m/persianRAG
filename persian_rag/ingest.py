@@ -11,18 +11,20 @@ SPARSE_VOCAB_PATH = "sparse_vocab.json"
 BATCH_SIZE = 96  # Cohere embed batch limit is generous, but keep requests moderate
 
 
-def main(pdf_path: str) -> None:
+def main(pdf_path: str, ocr_enabled: bool) -> None:
     print(f"Parsing + chunking {pdf_path} ...")
     parents, children = chunk_document(
         pdf_path,
         parent_tokens=CFG.parent_chunk_tokens,
         child_tokens=CFG.child_chunk_tokens,
         child_overlap=CFG.child_chunk_overlap,
-        ocr_enabled=CFG.ocr_enabled,
+        ocr_enabled=ocr_enabled and CFG.ocr_enabled,
         ocr_lang=CFG.ocr_lang,
         ocr_dpi=CFG.ocr_dpi,
     )
     print(f"  {len(parents)} parent chunks, {len(children)} child chunks")
+    if not parents:
+        print("WARNING: no text extracted. If the PDF is scanned, re-run WITHOUT --no-ocr.")
 
     print("Saving parent chunks to sqlite ...")
     save_parents(CFG.parent_db_path, parents)
@@ -70,7 +72,9 @@ def _stable_int_id(child_id: str) -> int:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python -m persian_rag.ingest /path/to/document.pdf")
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    ocr_enabled = "--no-ocr" not in sys.argv
+    if len(args) != 1:
+        print("Usage: python -m persian_rag.ingest [--no-ocr] /path/to/document.pdf")
         sys.exit(1)
-    main(sys.argv[1])
+    main(args[0], ocr_enabled=ocr_enabled)
