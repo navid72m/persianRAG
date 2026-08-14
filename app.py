@@ -41,19 +41,16 @@ st.caption("بازیابی ترکیبی (Hybrid) + بازنویسی پرسش + �
 if "messages" not in st.session_state:
     st.session_state.messages = []  # [{role, content, meta?}]
 
-with st.sidebar:
-    st.subheader("تنظیمات نشست")
-    if st.button("🗑️ پاک‌کردن گفتگو", use_container_width=True):
+# inline controls on the main page (no sidebar)
+col_a, col_b, col_c = st.columns([1, 1, 1])
+with col_a:
+    if st.button("🗑️ پاک‌کردن گفتگو"):
         st.session_state.messages = []
         st.rerun()
-    st.divider()
+with col_b:
     show_sources = st.checkbox("نمایش منابع بازیابی‌شده", value=True)
-    show_route = st.checkbox("نمایش مسیر و نیت تشخیص‌داده‌شده", value=True)
-    st.divider()
-    st.caption(
-        "این رابط فقط برای پرسیدن سوال است. سند از پیش با دستور "
-        "`python -m persian_rag.ingest` ایندکس شده است."
-    )
+with col_c:
+    show_route = st.checkbox("نمایش مسیر و نیت", value=True)
 
 # replay history
 for msg in st.session_state.messages:
