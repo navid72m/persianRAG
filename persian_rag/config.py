@@ -33,14 +33,23 @@ class Config:
     qdrant_url: str = _secret("QDRANT_URL", "http://localhost:6333")
     qdrant_api_key: str = _secret("QDRANT_API_KEY") or None
 
-    # --- embeddings: Jina Embeddings v3 (API) ---
+    # --- embeddings: Jina Embeddings v3 ---
     # Multilingual (incl. Persian), instruction-tuned with task prompts
-    # ("retrieval.query" / "retrieval.passage"), 1024 dims. Free API key
-    # from https://jina.ai (dashboard -> API keys).
+    # ("retrieval.query" / "retrieval.passage"), 1024 dims.
+    #
+    # Backend "local" = sentence-transformers running the model locally
+    # (recommended for servers/VPS; weights downloaded from HF on first use).
+    # Backend "api"    = https://api.jina.ai (geo-blocked from some networks;
+    #                    free key from https://jina.ai).
+    # Both produce identical vectors — collections stay consistent.
+    embed_backend: str = _secret("EMBED_BACKEND", "local")
+    embed_model: str = _secret("EMBED_MODEL", "jinaai/jina-embeddings-v3")
+    embed_device: str = _secret("EMBED_DEVICE", "cuda")  # cuda | mps | cpu
+
     jina_api_key: str = _secret("JINA_API_KEY")
     jina_api_url: str = _secret("JINA_API_URL", "https://api.jina.ai/v1/embeddings")
     jina_model: str = _secret("JINA_MODEL", "jina-embeddings-v3")
-    embed_retries: int = 6  # connection/timeout/5xx retries per batch
+    embed_retries: int = 6  # connection/timeout/5xx retries per batch (API backend)
     embed_retry_backoff: float = 20.0  # seconds, doubles each retry (20, 40, 80, ...)
 
     embed_dim: int = 1024  # jina-embeddings-v3; collection is created with this size

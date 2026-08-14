@@ -3,6 +3,7 @@ pytesseract>=0.3.10
 Pillow>=10.0
 hazm
 requests>=2.31
+sentence-transformers>=3.0
 qdrant-client>=1.9
 cohere>=5.5
 openai>=1.30

@@ -7,7 +7,9 @@ from .config import CFG
 
 
 def get_client() -> QdrantClient:
-    return QdrantClient(url=CFG.qdrant_url, api_key=CFG.qdrant_api_key)
+    # timeout=120: the cloud Qdrant connection is flaky from some networks;
+    # the httpx default (5s write) aborts legitimate batch upserts.
+    return QdrantClient(url=CFG.qdrant_url, api_key=CFG.qdrant_api_key, timeout=120)
 
 
 def ensure_collection(client: QdrantClient) -> None:

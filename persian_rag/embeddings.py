@@ -1,13 +1,15 @@
 """
-Jina Embeddings v3 client — multilingual (incl. Persian), instruction-tuned.
+Jina Embeddings v3 — dual backend.
 
-The API takes a `task` field so the model knows which side of a query/document
-pair it's encoding. We use:
-  - "retrieval.query"   for the user's question
-  - "retrieval.passage" for chunks being indexed
+Local backend (default, recommended for servers/VPS):
+  sentence-transformers, model `jinaai/jina-embeddings-v3`, task prompts
+  "retrieval.query"/"retrieval.passage" (identical to the API's task field).
 
-Response envelope is OpenAI-style: {"data": [{"embedding": [...]}], ...}.
-Reference: https://jina.ai/embeddings/
+API backend:
+  POST https://api.jina.ai/v1/embeddings (geo-blocked from some networks).
+
+Vectors from both backends are produced by the same model, so Qdrant
+collections stay consistent across them.
 """
 import time
 
@@ -22,28 +24,52 @@ _RETRYABLE = (
     requests.Timeout,
 )
 
+_model = None
+
+
+def _local_model():
+    """Lazy-load the local SentenceTransformer (weights download on first use)."""
+    global _model
+    if _model is None:
+        from sentence_transformers import SentenceTransformer
+
+        _model = SentenceTransformer(CFG.embed_model, trust_remote_code=True,
+                                     device=CFG.embed_device)
+    return _model
+
+
+def _embed_local(texts: list[str], task: str) -> list[list[float]]:
+    vecs = _local_model().encode(texts, prompt_name=task, batch_size=_BATCH_SIZE,
+                                 normalize_embeddings=True)
+    return [v.tolist() for v in vecs]
+
 
 def _retry_until_success(attempt_fn, max_retries: int, backoff: float, batch_label: str):
-    """Runs attempt_fn, retrying connection failures / 5xx with exponential
-    backoff. The embedding endpoint has proven flaky from some networks;
-    retrying a single batch in-place avoids losing the whole ingest."""
+    """Runs attempt_fn, retrying transient failures (connection errors,
+    timeouts, 429/451/5xx) with exponential backoff. 451 is Jina's geo-block,
+    which is intermittent on some networks — retrying rides it out."""
     delay = backoff
+    status = "network error"
     for attempt in range(max_retries + 1):
         try:
             resp = attempt_fn()
-            if resp.status_code < 500:
+            if resp.status_code < 400:
                 return resp
+            transient = resp.status_code in (408, 429, 451) or resp.status_code >= 500
+            if not transient:
+                raise RuntimeError(f"Jina API error {resp.status_code}: {resp.text[:300]}")
+            status = f"HTTP {resp.status_code}"
         except _RETRYABLE:
             pass
         if attempt == max_retries:
-            raise
-        print(f"  embedding API unavailable ({batch_label}), retrying in {int(delay)}s "
-              f"(attempt {attempt + 1}/{max_retries})")
+            raise RuntimeError("Jina API unreachable after all retries")
+        print(f"  embedding API unavailable ({batch_label}, {status}), "
+              f"retrying in {int(delay)}s (attempt {attempt + 1}/{max_retries})")
         time.sleep(delay)
         delay *= 2
 
 
-def _call_jina(texts: list[str], task: str) -> list[list[float]]:
+def _embed_api(texts: list[str], task: str) -> list[list[float]]:
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
@@ -63,23 +89,27 @@ def _call_jina(texts: list[str], task: str) -> list[list[float]]:
             CFG.embed_retry_backoff,
             batch_label=f"batch {i // _BATCH_SIZE + 1}",
         )
-        if resp.status_code >= 400:
-            raise RuntimeError(f"Jina API error {resp.status_code}: {resp.text[:300]}")
         data = resp.json()
         try:
             batch_embeddings = [item["embedding"] for item in data["data"]]
         except (KeyError, TypeError):
             raise ValueError(
                 f"Unrecognized Jina API response shape, keys={list(data.keys())}. "
-                "Inspect the raw response and adjust _call_jina() in embeddings.py."
+                "Inspect the raw response and adjust _embed_api() in embeddings.py."
             )
         all_embeddings.extend(batch_embeddings)
     return all_embeddings
 
 
+def _embed(texts: list[str], task: str) -> list[list[float]]:
+    if CFG.embed_backend == "local":
+        return _embed_local(texts, task)
+    return _embed_api(texts, task)
+
+
 def embed_documents(texts: list[str]) -> list[list[float]]:
-    return _call_jina(texts, task="retrieval.passage")
+    return _embed(texts, task="retrieval.passage")
 
 
 def embed_query(text: str) -> list[float]:
-    return _call_jina([text], task="retrieval.query")[0]
+    return _embed([text], task="retrieval.query")[0]

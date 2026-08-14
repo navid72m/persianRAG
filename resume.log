@@ -1,0 +1,18 @@
+Loading parents from sqlite ...
+  79 parents
+  rebuilt 533 children
+Loading BM25 vocabulary ...
+  533 docs, 18202 terms
+Connecting to Qdrant ...
+Embedding + upserting children ...
+  embedding API unavailable (batch 1, HTTP 451), retrying in 20s (attempt 1/6)
+  embedding API unavailable (batch 1, HTTP 451), retrying in 40s (attempt 2/6)
+  embedding API unavailable (batch 1, HTTP 451), retrying in 80s (attempt 3/6)
+  embedding API unavailable (batch 1, HTTP 451), retrying in 160s (attempt 4/6)
+  embedding API unavailable (batch 1, HTTP 451), retrying in 320s (attempt 5/6)
+  embedding API unavailable (batch 1, HTTP 451), retrying in 640s (attempt 6/6)
+  upserted 96/533
+  upserted 192/533
+  upserted 288/533
+  upserted 384/533
+  upserted 480/533
