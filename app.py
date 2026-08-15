@@ -1,10 +1,9 @@
 """
 Streamlit chat UI for the Persian RAG pipeline. No document upload here on
-purpose — ingestion is a separate offline step (`python -m persian_rag.ingest`)
-since it's meant to run once against your 625-page document, not per-session.
+purpose — ingestion is a separate offline step (`python -m persian_rag.ingest`).
 
 Run with:
-    streamlit run streamlit_app.py
+    streamlit run app.py
 """
 import streamlit as st
 
@@ -12,64 +11,260 @@ from persian_rag.rag import run_query
 
 st.set_page_config(page_title="پرسش‌وپاسخ سند", page_icon="📄", layout="centered")
 
-# RTL + Persian-friendly styling
+# ---------------------------------------------------------------------------
+# Styling
+# ---------------------------------------------------------------------------
 st.markdown("""
 <style>
-    .stApp, .stChatMessage, .stMarkdown, textarea, input {
-        direction: rtl;
-        text-align: right;
-        font-family: "Vazirmatn", "Tahoma", sans-serif;
-    }
-    [data-testid="stChatMessageContent"] { direction: rtl; text-align: right; }
-    .stChatInput textarea { direction: rtl; text-align: right; }
-    .route-badge {
-        display: inline-block;
-        font-size: 0.75rem;
-        padding: 2px 8px;
-        border-radius: 10px;
-        background: #f0f0f5;
-        color: #555;
-        margin-bottom: 6px;
-        direction: ltr;
-    }
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&display=swap');
+
+:root {
+    --ink: #1e293b;
+    --muted: #64748b;
+    --brand: #0f766e;
+    --brand-soft: #ccfbf1;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --line: #e2e8f0;
+}
+
+.stApp {
+    direction: rtl;
+    background:
+        radial-gradient(1200px 400px at 85% -10%, #ccfbf1 0%, transparent 60%),
+        radial-gradient(1000px 400px at 10% -20%, #e0f2fe 0%, transparent 55%),
+        var(--bg);
+}
+
+.stApp, .stChatMessage, .stMarkdown, textarea, input {
+    font-family: "Vazirmatn", "Tahoma", sans-serif;
+}
+
+/* header */
+.hero {
+    direction: rtl;
+    text-align: center;
+    padding: 1.2rem 0 0.4rem;
+}
+.hero h1 {
+    font-size: 2.1rem;
+    font-weight: 900;
+    color: var(--ink);
+    margin: 0;
+    letter-spacing: -0.5px;
+}
+.hero .sub {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-top: 0.35rem;
+    font-weight: 400;
+}
+.hero .pill {
+    display: inline-block;
+    background: var(--brand-soft);
+    color: var(--brand);
+    border-radius: 999px;
+    padding: 0.2rem 0.9rem;
+    font-size: 0.72rem;
+    font-weight: 500;
+    margin-top: 0.6rem;
+}
+
+/* controls row */
+.controls {
+    direction: rtl;
+    display: flex;
+    gap: 0.8rem;
+    justify-content: center;
+    align-items: center;
+    margin: 0.9rem 0 0.3rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+/* chat bubbles */
+[data-testid="stChatMessage"] {
+    border-radius: 18px;
+    padding: 0.2rem 0.1rem;
+    background: transparent !important;
+}
+[data-testid="stChatMessageContent"] {
+    direction: rtl;
+    text-align: right;
+    line-height: 1.9;
+    color: var(--ink);
+}
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) [data-testid="stChatMessageContent"] {
+    background: var(--brand);
+    color: #fff;
+    border-radius: 18px 18px 4px 18px;
+    padding: 0.7rem 1rem;
+}
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) [data-testid="stChatMessageContent"] {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px 18px 18px 4px;
+    padding: 0.7rem 1rem;
+}
+
+/* route badge */
+.route-badge {
+    direction: ltr;
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    margin-bottom: 0.4rem;
+    background: #f1f5f9;
+    color: #475569;
+    letter-spacing: 0.3px;
+}
+.route-badge.simple_retrieval { background: #e0f2fe; color: #0369a1; }
+.route-badge.multi_hop       { background: #f3e8ff; color: #7e22ce; }
+.route-badge.direct_answer   { background: #dcfce7; color: #15803d; }
+
+/* source cards */
+.src-card {
+    direction: rtl;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 0.7rem 0.9rem;
+    margin: 0.45rem 0;
+    background: #fbfdff;
+}
+.src-card .pages {
+    display: inline-block;
+    background: var(--brand-soft);
+    color: var(--brand);
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 0.1rem 0.65rem;
+    direction: ltr;
+}
+.src-card .txt {
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.8;
+    margin-top: 0.35rem;
+}
+
+/* chat input */
+[data-testid="stChatInput"] {
+    direction: rtl;
+    border-radius: 16px !important;
+    border: 1px solid var(--line) !important;
+    box-shadow: 0 4px 18px rgba(15, 118, 110, 0.08) !important;
+}
+[data-testid="stChatInput"] textarea { direction: rtl; text-align: right; }
+
+/* typing indicator */
+.typing {
+    direction: rtl;
+    color: var(--muted);
+    font-size: 0.9rem;
+    padding: 0.3rem 0.2rem;
+}
+.typing .dot { display: inline-block; animation: blink 1.2s infinite; }
+.typing .dot:nth-child(2) { animation-delay: 0.2s; }
+.typing .dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
+
+/* expander */
+[data-testid="stExpander"] {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #fff;
+}
+[data-testid="stExpander"] summary { direction: rtl; color: var(--ink); font-weight: 700; }
+
+.footer {
+    direction: rtl;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.72rem;
+    margin-top: 2.5rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
-st.title("📄 پرسش‌وپاسخ روی سند")
-st.caption("بازیابی ترکیبی (Hybrid) + بازنویسی پرسش + مسیریابی + چانک والد-فرزند")
+# ---------------------------------------------------------------------------
+# Header
+# ---------------------------------------------------------------------------
+st.markdown("""
+<div class="hero">
+  <h1>📄 پرسش‌وپاسخ روی سند</h1>
+  <div class="sub">بازیابی ترکیبی · بازنویسی پرسش · مسیریابی هوشمند · چانک والد-فرزند</div>
+  <span class="pill">مبتنی بر سند مبحث نهم مقررات ملی ساختمان</span>
+</div>
+""", unsafe_allow_html=True)
 
 if "messages" not in st.session_state:
     st.session_state.messages = []  # [{role, content, meta?}]
 
-# inline controls on the main page (no sidebar)
-col_a, col_b, col_c = st.columns([1, 1, 1])
+# ---------------------------------------------------------------------------
+# Inline controls (no sidebar)
+# ---------------------------------------------------------------------------
+col_a, col_b, col_c = st.columns([1, 1, 1], vertical_alignment="center")
 with col_a:
-    if st.button("🗑️ پاک‌کردن گفتگو"):
+    if st.button("🗑️ پاک‌کردن گفتگو", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 with col_b:
-    show_sources = st.checkbox("نمایش منابع بازیابی‌شده", value=True)
+    show_sources = st.checkbox("نمایش منابع", value=True)
 with col_c:
     show_route = st.checkbox("نمایش مسیر و نیت", value=True)
 
-# replay history
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        meta = msg.get("meta")
-        if meta and msg["role"] == "assistant" and show_route:
+_ROUTE_FA = {
+    "direct_answer": "پاسخ مستقیم",
+    "simple_retrieval": "بازیابی ساده",
+    "multi_hop": "چندمرحله‌ای",
+}
+
+
+def _route_badge(meta: dict) -> str:
+    route = meta.get("route") or "—"
+    intent = meta.get("intent") or ""
+    label = _ROUTE_FA.get(route, route)
+    return (f'<span class="route-badge {route}">{label} · {intent}</span>')
+
+
+def _render_sources(retrieved: list[dict]) -> None:
+    with st.expander(f"📚 {len(retrieved)} قطعه مرتبط از سند", expanded=False):
+        for c in retrieved:
+            txt = c.get("text", "")
+            pages = f"{c.get('page_start', '?')}–{c.get('page_end', '?')}"
             st.markdown(
-                f'<span class="route-badge">route: {meta.get("route")} · intent: {meta.get("intent")}</span>',
+                f'<div class="src-card">'
+                f'<span class="pages">صفحات {pages}</span>'
+                f'<div class="txt">{txt[:450]}{"…" if len(txt) > 450 else ""}</div>'
+                f'</div>',
                 unsafe_allow_html=True,
             )
-        st.markdown(msg["content"])
-        if meta and msg["role"] == "assistant" and show_sources and meta.get("retrieved"):
-            with st.expander(f"📚 {len(meta['retrieved'])} قطعه منبع"):
-                for c in meta["retrieved"]:
-                    st.markdown(f"**صفحات {c['page_start']}-{c['page_end']}**")
-                    st.caption(c["text"][:400] + ("…" if len(c["text"]) > 400 else ""))
-                    st.divider()
 
-# chat history passed to the pipeline for coreference resolution in rewrite step
+
+def _render_message(msg: dict) -> None:
+    with st.chat_message(msg["role"]):
+        if msg["role"] == "assistant":
+            meta = msg.get("meta") or {}
+            if show_route and meta.get("route"):
+                st.markdown(_route_badge(meta), unsafe_allow_html=True)
+            st.markdown(msg["content"])
+            if show_sources and meta.get("retrieved"):
+                _render_sources(meta["retrieved"])
+        else:
+            st.markdown(msg["content"])
+
+
+# replay history
+for msg in st.session_state.messages:
+    _render_message(msg)
+
+
+# ---------------------------------------------------------------------------
+# Chat logic
+# ---------------------------------------------------------------------------
 def _history_for_pipeline() -> list[dict]:
     return [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
 
@@ -78,12 +273,15 @@ user_input = st.chat_input("پرسش خود را بنویسید...")
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
-    with st.chat_message("user"):
-        st.markdown(user_input)
+    _render_message(st.session_state.messages[-1])
 
     with st.chat_message("assistant"):
         placeholder = st.empty()
-        placeholder.markdown("در حال جست‌وجو و تولید پاسخ...")
+        placeholder.markdown(
+            '<div class="typing">در حال جست‌وجو و تولید پاسخ'
+            '<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>',
+            unsafe_allow_html=True,
+        )
         try:
             history = _history_for_pipeline()[:-1]  # exclude the message just added
             state = run_query(user_input, chat_history=history)
@@ -94,21 +292,19 @@ if user_input:
                 "retrieved": state.get("retrieved", []),
             }
         except Exception as e:
-            answer = f"خطا در پردازش پرسش: `{e}`"
+            answer = f"⚠️ خطا در پردازش پرسش: `{e}`"
             meta = {}
 
         placeholder.empty()
         if meta.get("route") and show_route:
-            st.markdown(
-                f'<span class="route-badge">route: {meta.get("route")} · intent: {meta.get("intent")}</span>',
-                unsafe_allow_html=True,
-            )
+            st.markdown(_route_badge(meta), unsafe_allow_html=True)
         st.markdown(answer)
         if meta.get("retrieved") and show_sources:
-            with st.expander(f"📚 {len(meta['retrieved'])} قطعه منبع"):
-                for c in meta["retrieved"]:
-                    st.markdown(f"**صفحات {c['page_start']}-{c['page_end']}**")
-                    st.caption(c["text"][:400] + ("…" if len(c["text"]) > 400 else ""))
-                    st.divider()
+            _render_sources(meta["retrieved"])
 
     st.session_state.messages.append({"role": "assistant", "content": answer, "meta": meta})
+
+st.markdown(
+    '<div class="footer">این رابط فقط برای پرسیدن سؤال است — سند از پیش ایندکس شده است.</div>',
+    unsafe_allow_html=True,
+)
