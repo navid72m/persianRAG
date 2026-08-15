@@ -2,8 +2,15 @@
 re-running OCR/chunking. Children are deterministically rebuilt from
 parents.sqlite (same ids), then embedded + upserted.
 
-Usage: python3 -m persian_rag.resume_embed
+Resumable: after each batch a progress marker is written to
+EMBED_PROGRESS (default "resume_embed.progress"), so an interrupted run
+continues from the last completed batch instead of restarting.
+
+Usage:
+    python3 -m persian_rag.resume_embed
+    EMBED_BATCH_SIZE=32 python3 -m persian_rag.resume_embed   # lower memory
 """
+import os
 import sqlite3
 import time
 
@@ -14,7 +21,8 @@ from .ingest import SPARSE_VOCAB_PATH, _stable_int_id
 from .sparse import BM25Vocab
 from .vectorstore import ensure_collection, get_client, upsert_children
 
-BATCH_SIZE = 96
+BATCH_SIZE = int(os.getenv("EMBED_BATCH_SIZE", "96"))  # lower (e.g. 32) if the box OOMs
+PROGRESS_PATH = os.getenv("EMBED_PROGRESS", "resume_embed.progress")
 
 
 def _embed_patiently(texts: list[str], label: str) -> list[list[float]]:
@@ -41,6 +49,21 @@ def _upsert_patiently(client, points: list[dict], label: str) -> None:
             time.sleep(60)
 
 
+def _read_progress() -> int:
+    if os.path.exists(PROGRESS_PATH):
+        try:
+            n = int(open(PROGRESS_PATH).read().strip())
+            return (n // BATCH_SIZE) * BATCH_SIZE  # align to batch boundary
+        except (ValueError, OSError):
+            pass
+    return 0
+
+
+def _write_progress(n: int) -> None:
+    with open(PROGRESS_PATH, "w") as f:
+        f.write(str(n))
+
+
 def main() -> None:
     print("Loading parents from sqlite ...", flush=True)
     conn = sqlite3.connect(CFG.parent_db_path)
@@ -52,6 +75,11 @@ def main() -> None:
     children = build_child_chunks(parents, CFG.child_chunk_tokens, CFG.child_chunk_overlap)
     print(f"  rebuilt {len(children)} children", flush=True)
 
+    start = _read_progress()
+    if start:
+        print(f"  resuming from batch {start // BATCH_SIZE + 1} ({start}/{len(children)})",
+              flush=True)
+
     print("Loading BM25 vocabulary ...", flush=True)
     vocab = BM25Vocab.load(SPARSE_VOCAB_PATH)
     print(f"  {vocab.n_docs} docs, {len(vocab.term_to_idx)} terms", flush=True)
@@ -61,7 +89,7 @@ def main() -> None:
     ensure_collection(client)
 
     print("Embedding + upserting children ...", flush=True)
-    for i in range(0, len(children), BATCH_SIZE):
+    for i in range(start, len(children), BATCH_SIZE):
         batch = children[i:i + BATCH_SIZE]
         dense_vectors = _embed_patiently([c.text for c in batch], f"batch {i // BATCH_SIZE + 1}")
         points = []
@@ -81,7 +109,11 @@ def main() -> None:
                 },
             })
         _upsert_patiently(client, points, f"batch {i // BATCH_SIZE + 1}")
+        _write_progress(i + len(batch))
         print(f"  upserted {min(i + BATCH_SIZE, len(children))}/{len(children)}", flush=True)
+
+    if os.path.exists(PROGRESS_PATH):
+        os.remove(PROGRESS_PATH)
     print("Done.", flush=True)
 
 
