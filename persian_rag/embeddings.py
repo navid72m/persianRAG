@@ -43,8 +43,11 @@ def _local_model():
 
 
 def _embed_local(texts: list[str], task: str) -> list[list[float]]:
-    vecs = _local_model().encode(texts, prompt_name=task, batch_size=_BATCH_SIZE,
-                                 normalize_embeddings=True)
+    model = _local_model()
+    kwargs = {"batch_size": _BATCH_SIZE, "normalize_embeddings": True}
+    if task in (model.prompts or {}):
+        kwargs["prompt_name"] = task
+    vecs = model.encode(texts, **kwargs)
     return [v.tolist() for v in vecs]
 
 

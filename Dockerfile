@@ -59,14 +59,12 @@ RUN pip install --timeout 300 --retries 10 --no-cache-dir --index-url ${TORCH_IN
 COPY requirements.txt .
 RUN pip install --timeout 300 --retries 10 --no-cache-dir -r requirements.txt
 
-# Pre-download the embedding model + its trust_remote_code module repo so
-# first startup doesn't stall (and partial downloads can't corrupt the cache).
+# Pre-download the embedding model so first startup doesn't stall.
 # Network to huggingface.co may need a mirror: --build-arg HF_ENDPOINT=https://hf-mirror.com
 ARG HF_ENDPOINT=
 ENV HF_ENDPOINT=${HF_ENDPOINT}
 RUN python -c "from huggingface_hub import snapshot_download; \
-    snapshot_download('jinaai/jina-embeddings-v3'); \
-    snapshot_download('jinaai/xlm-roberta-flash-implementation')" \
+    snapshot_download('heydariAI/persian-embeddings')" \
     || echo "model pre-download failed — will download on first run"
 
 COPY . .

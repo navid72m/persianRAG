@@ -37,13 +37,12 @@ class Config:
     # Multilingual (incl. Persian), instruction-tuned with task prompts
     # ("retrieval.query" / "retrieval.passage"), 1024 dims.
     #
+    # Backend "local"  = sentence-transformers running the model locally.
     # Backend "api"    = https://api.jina.ai (needs JINA_API_KEY; fast).
-    # Backend "local"  = sentence-transformers running the model locally
-    #                    (recommended for servers/VPS; weights downloaded
-    #                    from HF on first use; slow without a GPU).
-    # Both produce identical vectors — collections stay consistent.
-    embed_backend: str = _secret("EMBED_BACKEND", "api")
-    embed_model: str = _secret("EMBED_MODEL", "jinaai/jina-embeddings-v3")
+    # NOTE: switching models invalidates existing Qdrant vectors — re-run
+    # `python -m persian_rag.resume_embed` after a model change.
+    embed_backend: str = _secret("EMBED_BACKEND", "local")
+    embed_model: str = _secret("EMBED_MODEL", "heydariAI/persian-embeddings")
     embed_device: str = _secret("EMBED_DEVICE", "cpu")  # cuda | mps | cpu (cuda auto-falls back)
 
     jina_api_key: str = _secret("JINA_API_KEY")
