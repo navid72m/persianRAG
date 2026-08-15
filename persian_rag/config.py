@@ -37,12 +37,12 @@ class Config:
     # Multilingual (incl. Persian), instruction-tuned with task prompts
     # ("retrieval.query" / "retrieval.passage"), 1024 dims.
     #
-    # Backend "local" = sentence-transformers running the model locally
-    # (recommended for servers/VPS; weights downloaded from HF on first use).
-    # Backend "api"    = https://api.jina.ai (geo-blocked from some networks;
-    #                    free key from https://jina.ai).
+    # Backend "api"    = https://api.jina.ai (needs JINA_API_KEY; fast).
+    # Backend "local"  = sentence-transformers running the model locally
+    #                    (recommended for servers/VPS; weights downloaded
+    #                    from HF on first use; slow without a GPU).
     # Both produce identical vectors — collections stay consistent.
-    embed_backend: str = _secret("EMBED_BACKEND", "local")
+    embed_backend: str = _secret("EMBED_BACKEND", "api")
     embed_model: str = _secret("EMBED_MODEL", "jinaai/jina-embeddings-v3")
     embed_device: str = _secret("EMBED_DEVICE", "cpu")  # cuda | mps | cpu (cuda auto-falls back)
 
