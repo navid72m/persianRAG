@@ -20,6 +20,21 @@ def run_query(query: str, chat_history: list[dict] | None = None) -> dict:
     return final_state
 
 
+def run_query_stream(query: str, chat_history: list[dict] | None = None,
+                     on_update=None) -> dict:
+    """Same as run_query, but streams each executed node so callers can show
+    live progress. on_update(node_name, partial_state) is invoked as each
+    node finishes."""
+    graph = _graph_singleton()
+    final_state: dict = {"query": query, "chat_history": chat_history or []}
+    for update in graph.stream(final_state, stream_mode="updates"):
+        for node, partial in update.items():
+            final_state.update(partial)
+            if on_update:
+                on_update(node, partial)
+    return final_state
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python -m persian_rag.rag \"پرسش شما\"")

@@ -5,9 +5,11 @@ purpose — ingestion is a separate offline step (`python -m persian_rag.ingest`
 Run with:
     streamlit run app.py
 """
+import time
+
 import streamlit as st
 
-from persian_rag.rag import run_query
+from persian_rag.rag import run_query_stream
 
 st.set_page_config(page_title="پرسش‌وپاسخ سند", page_icon="📄", layout="centered")
 
@@ -126,6 +128,27 @@ st.markdown("""
     font-size: 0.7rem;
     margin-top: 2.5rem;
 }
+
+/* stage tracker */
+.stage-tracker {
+    direction: rtl;
+    font-size: 0.85rem;
+    padding: 0.4rem 0;
+}
+.stage-tracker .st-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.22rem 0;
+    color: #9ca3af;
+}
+.stage-tracker .st-row.done { color: #16a34a; }
+.stage-tracker .st-row.active {
+    color: #1f2937;
+    font-weight: 700;
+}
+.stage-tracker .st-ico { width: 1.2rem; text-align: center; }
+.stage-tracker .st-note { font-size: 0.72rem; color: #9ca3af; margin-top: 0.15rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -160,6 +183,41 @@ _ROUTE_FA = {
     "simple_retrieval": "بازیابی ساده",
     "multi_hop": "چندمرحله‌ای",
 }
+
+_STAGES = [
+    ("rewrite_and_classify", "🧠", "بازنویسی و تحلیل پرسش"),
+    ("retrieve", "🔎", "جست‌وجو در سند"),
+    ("generate", "✍️", "تولید پاسخ"),
+    ("direct_answer", "💬", "نوشتن پاسخ"),
+]
+_STAGE_NOTES = {
+    "retrieve": "بازیابی روی سرور انجام می‌شود و ممکن است کمی طول بکشد…",
+}
+
+
+def _render_tracker(ph, done: list[str], current: str) -> None:
+    rows = []
+    for node, icon, label in _STAGES:
+        if node in done:
+            cls, ico = "done", "✓"
+        elif node == current:
+            cls, ico = "active", "●"
+        else:
+            cls, ico = "", "·"
+        note = ""
+        if node == current and node in _STAGE_NOTES:
+            note = f'<div class="st-note">{_STAGE_NOTES[node]}</div>'
+        rows.append(
+            f'<div class="st-row {cls}"><span class="st-ico">{ico}</span>'
+            f'<span>{label}</span></div>{note}'
+        )
+    ph.markdown(f'<div class="stage-tracker">{"".join(rows)}</div>', unsafe_allow_html=True)
+
+
+def _fmt_elapsed(secs: float) -> str:
+    if secs < 60:
+        return f"{int(secs)} ثانیه"
+    return f"{int(secs // 60)} دقیقه و {int(secs % 60)} ثانیه"
 
 
 def _route_badge(meta: dict) -> str:
@@ -215,15 +273,20 @@ if user_input:
     _render_message(st.session_state.messages[-1])
 
     with st.chat_message("assistant"):
-        placeholder = st.empty()
-        placeholder.markdown(
-            '<div class="typing">در حال جست‌وجو و تولید پاسخ'
-            '<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>',
-            unsafe_allow_html=True,
-        )
+        tracker = st.empty()
+        bar = st.empty()
+        done_stages: list[str] = []
+        t0 = time.time()
+
+        def on_update(node: str, _partial: dict) -> None:
+            if node not in done_stages:
+                done_stages.append(node)
+            _render_tracker(tracker, done_stages, node)
+            bar.progress(min(len(done_stages) / len(_STAGES), 1.0))
+
         try:
             history = _history_for_pipeline()[:-1]  # exclude the message just added
-            state = run_query(user_input, chat_history=history)
+            state = run_query_stream(user_input, chat_history=history, on_update=on_update)
             answer = state.get("answer", "پاسخی تولید نشد.")
             meta = {
                 "route": state.get("route"),
@@ -234,12 +297,16 @@ if user_input:
             answer = f"⚠️ خطا در پردازش پرسش: `{e}`"
             meta = {}
 
-        placeholder.empty()
+        elapsed = _fmt_elapsed(time.time() - t0)
+        bar.empty()
+        tracker.empty()
         if meta.get("route") and show_route:
             st.markdown(_route_badge(meta), unsafe_allow_html=True)
         st.markdown(answer)
         if meta.get("retrieved") and show_sources:
             _render_sources(meta["retrieved"])
+        if not isinstance(answer, str) or not answer.startswith("⚠️"):
+            st.caption(f"⏱ زمان پاسخ: {elapsed}")
 
     st.session_state.messages.append({"role": "assistant", "content": answer, "meta": meta})
 
