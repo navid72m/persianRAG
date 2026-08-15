@@ -8,6 +8,8 @@ requests>=2.31
 # ('XLMRobertaLoRA' has no attribute 'all_tied_weights_keys').
 sentence-transformers==3.1.0
 transformers==4.41.2
+# needed by transformers at import; Streamlit's file watcher errors without it
+torchvision
 qdrant-client>=1.9
 cohere>=5.5
 openai>=1.30
