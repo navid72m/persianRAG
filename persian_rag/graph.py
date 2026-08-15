@@ -2,7 +2,7 @@ from typing import TypedDict
 
 from langgraph.graph import END, StateGraph
 
-from .generate import generate_answer, generate_direct_answer
+from .generate import generate_answer, generate_calculated_answer, generate_direct_answer, extract_calculation
 from .query_processing import process_query
 from .retrieval import retrieve_and_assemble
 
@@ -12,6 +12,7 @@ class RAGState(TypedDict, total=False):
     chat_history: list[dict]
     intent: str
     needs_retrieval: bool
+    needs_calculation: bool
     rewritten_query: str
     sub_queries: list[str]
     route: str
@@ -31,7 +32,11 @@ def node_retrieve(state: RAGState) -> RAGState:
 
 
 def node_generate(state: RAGState) -> RAGState:
-    answer = generate_answer(state["rewritten_query"], state.get("retrieved", []))
+    if state.get("needs_calculation"):
+        calc = extract_calculation(state["rewritten_query"], state.get("retrieved", []))
+        answer = generate_calculated_answer(state["rewritten_query"], calc, state.get("retrieved", []))
+    else:
+        answer = generate_answer(state["rewritten_query"], state.get("retrieved", []))
     return {**state, "answer": answer}
 
 

@@ -22,8 +22,9 @@ _SYSTEM_PROMPT = """\
 برای هر پرسش کاربر باید خروجی JSON زیر را تولید کنی، بدون هیچ متن اضافه:
 
 {
-  "intent": one of ["factual_lookup", "summarization", "comparison", "definition", "chitchat", "out_of_scope"],
+  "intent": one of ["factual_lookup", "summarization", "comparison", "definition", "calculation", "chitchat", "out_of_scope"],
   "needs_retrieval": boolean,
+  "needs_calculation": boolean,
   "rewritten_query": string,   // پرسش بازنویسی‌شده: حل ارجاعات ضمیری با تاریخچه گفتگو، رفع ابهام، عادی‌سازی
   "sub_queries": [string],     // اگر پرسش چندبخشی یا مقایسه‌ای است، به ۲ تا ۴ زیرپرسش مستقل تجزیه کن؛ در غیر این صورت آرایه خالی
   "route": one of ["direct_answer", "simple_retrieval", "multi_hop"]
@@ -34,6 +35,11 @@ _SYSTEM_PROMPT = """\
 - اگر پرسش ساده و تک‌بخشی است -> route="simple_retrieval", sub_queries خالی
 - اگر پرسش شامل مقایسه، چند بخش مجزا، یا نیاز به ترکیب چند بخش از سند دارد -> route="multi_hop", sub_queries را پر کن
 - اگر پرسش خلاصه‌سازی کل سند یا بخش بزرگی از آن را می‌خواهد -> intent="summarization", route="multi_hop"
+
+قواعد محاسبات (فرمول):
+- اگر پرسش شامل اعداد/مقادیر عددی است و کاربر می‌خواهد نتیجه محاسبه شود (مثلا: «محاسبه کن»، «چقدر می‌شود»، «حساب کن»، «چند است») -> intent="calculation", needs_calculation=true
+- پرسش محاسباتی معمولا نیاز به بازیابی فرمول از سند دارد -> needs_retrieval=true و route="simple_retrieval"
+- در rewritten_query همه مقادیر و واحدها را عیناً حفظ کن تا مرحله محاسبه بتواند از آن‌ها استفاده کند.
 
 فقط JSON معتبر برگردان.
 """
@@ -63,6 +69,7 @@ def process_query(user_query: str, chat_history: list[dict] | None = None) -> di
         parsed = {
             "intent": "factual_lookup",
             "needs_retrieval": True,
+            "needs_calculation": False,
             "rewritten_query": user_query,
             "sub_queries": [],
             "route": "simple_retrieval",
@@ -71,4 +78,5 @@ def process_query(user_query: str, chat_history: list[dict] | None = None) -> di
     parsed.setdefault("sub_queries", [])
     parsed["sub_queries"] = parsed["sub_queries"][:CFG.max_sub_queries]
     parsed.setdefault("rewritten_query", user_query)
+    parsed.setdefault("needs_calculation", False)
     return parsed
