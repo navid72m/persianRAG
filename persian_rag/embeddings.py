@@ -32,9 +32,13 @@ def _local_model():
     global _model
     if _model is None:
         from sentence_transformers import SentenceTransformer
+        import torch
 
-        _model = SentenceTransformer(CFG.embed_model, trust_remote_code=True,
-                                     device=CFG.embed_device)
+        device = CFG.embed_device
+        if device == "cuda" and not torch.cuda.is_available():
+            print("  CUDA requested but not available — falling back to CPU")
+            device = "cpu"
+        _model = SentenceTransformer(CFG.embed_model, trust_remote_code=True, device=device)
     return _model
 
 

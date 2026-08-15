@@ -44,7 +44,7 @@ class Config:
     # Both produce identical vectors — collections stay consistent.
     embed_backend: str = _secret("EMBED_BACKEND", "local")
     embed_model: str = _secret("EMBED_MODEL", "jinaai/jina-embeddings-v3")
-    embed_device: str = _secret("EMBED_DEVICE", "cuda")  # cuda | mps | cpu
+    embed_device: str = _secret("EMBED_DEVICE", "cpu")  # cuda | mps | cpu (cuda auto-falls back)
 
     jina_api_key: str = _secret("JINA_API_KEY")
     jina_api_url: str = _secret("JINA_API_URL", "https://api.jina.ai/v1/embeddings")
