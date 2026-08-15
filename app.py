@@ -12,28 +12,14 @@ from persian_rag.rag import run_query
 st.set_page_config(page_title="پرسش‌وپاسخ سند", page_icon="📄", layout="centered")
 
 # ---------------------------------------------------------------------------
-# Styling
+# Styling (minimal)
 # ---------------------------------------------------------------------------
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&display=swap');
-
-:root {
-    --ink: #1e293b;
-    --muted: #64748b;
-    --brand: #0f766e;
-    --brand-soft: #ccfbf1;
-    --bg: #f8fafc;
-    --card: #ffffff;
-    --line: #e2e8f0;
-}
-
 .stApp {
     direction: rtl;
-    background:
-        radial-gradient(1200px 400px at 85% -10%, #ccfbf1 0%, transparent 60%),
-        radial-gradient(1000px 400px at 10% -20%, #e0f2fe 0%, transparent 55%),
-        var(--bg);
+    font-family: "Vazirmatn", "Tahoma", sans-serif;
+    background: #ffffff;
 }
 
 .stApp, .stChatMessage, .stMarkdown, textarea, input {
@@ -44,67 +30,39 @@ st.markdown("""
 .hero {
     direction: rtl;
     text-align: center;
-    padding: 1.2rem 0 0.4rem;
+    padding: 1.5rem 0 0.3rem;
 }
 .hero h1 {
-    font-size: 2.1rem;
-    font-weight: 900;
-    color: var(--ink);
+    font-size: 1.7rem;
+    font-weight: 800;
+    color: #111827;
     margin: 0;
-    letter-spacing: -0.5px;
 }
 .hero .sub {
-    color: var(--muted);
-    font-size: 0.9rem;
-    margin-top: 0.35rem;
-    font-weight: 400;
-}
-.hero .pill {
-    display: inline-block;
-    background: var(--brand-soft);
-    color: var(--brand);
-    border-radius: 999px;
-    padding: 0.2rem 0.9rem;
-    font-size: 0.72rem;
-    font-weight: 500;
-    margin-top: 0.6rem;
-}
-
-/* controls row */
-.controls {
-    direction: rtl;
-    display: flex;
-    gap: 0.8rem;
-    justify-content: center;
-    align-items: center;
-    margin: 0.9rem 0 0.3rem;
+    color: #6b7280;
     font-size: 0.85rem;
-    color: var(--muted);
+    margin-top: 0.3rem;
 }
 
-/* chat bubbles */
+/* chat messages */
 [data-testid="stChatMessage"] {
-    border-radius: 18px;
-    padding: 0.2rem 0.1rem;
     background: transparent !important;
+    padding: 0.1rem 0;
 }
 [data-testid="stChatMessageContent"] {
     direction: rtl;
     text-align: right;
     line-height: 1.9;
-    color: var(--ink);
+    color: #1f2937;
 }
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) [data-testid="stChatMessageContent"] {
-    background: var(--brand);
-    color: #fff;
-    border-radius: 18px 18px 4px 18px;
-    padding: 0.7rem 1rem;
+    background: #f3f4f6;
+    border-radius: 12px;
+    padding: 0.6rem 1rem;
 }
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) [data-testid="stChatMessageContent"] {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 18px 18px 18px 4px;
-    padding: 0.7rem 1rem;
+    background: transparent;
+    padding: 0.3rem 0.1rem;
 }
 
 /* route badge */
@@ -112,13 +70,12 @@ st.markdown("""
     direction: ltr;
     display: inline-block;
     font-size: 0.68rem;
-    font-weight: 700;
-    padding: 0.15rem 0.6rem;
+    font-weight: 600;
+    padding: 0.1rem 0.55rem;
     border-radius: 999px;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.3rem;
     background: #f1f5f9;
     color: #475569;
-    letter-spacing: 0.3px;
 }
 .route-badge.simple_retrieval { background: #e0f2fe; color: #0369a1; }
 .route-badge.multi_hop       { background: #f3e8ff; color: #7e22ce; }
@@ -127,63 +84,46 @@ st.markdown("""
 /* source cards */
 .src-card {
     direction: rtl;
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 0.7rem 0.9rem;
-    margin: 0.45rem 0;
-    background: #fbfdff;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0.55rem 0.1rem;
 }
 .src-card .pages {
     display: inline-block;
-    background: var(--brand-soft);
-    color: var(--brand);
     font-size: 0.72rem;
     font-weight: 700;
-    border-radius: 999px;
-    padding: 0.1rem 0.65rem;
+    color: #0f766e;
     direction: ltr;
+    margin-bottom: 0.2rem;
 }
 .src-card .txt {
-    color: var(--muted);
-    font-size: 0.82rem;
+    color: #6b7280;
+    font-size: 0.8rem;
     line-height: 1.8;
-    margin-top: 0.35rem;
 }
 
 /* chat input */
 [data-testid="stChatInput"] {
     direction: rtl;
-    border-radius: 16px !important;
-    border: 1px solid var(--line) !important;
-    box-shadow: 0 4px 18px rgba(15, 118, 110, 0.08) !important;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
 }
 [data-testid="stChatInput"] textarea { direction: rtl; text-align: right; }
 
 /* typing indicator */
-.typing {
-    direction: rtl;
-    color: var(--muted);
-    font-size: 0.9rem;
-    padding: 0.3rem 0.2rem;
-}
+.typing { direction: rtl; color: #9ca3af; font-size: 0.85rem; }
 .typing .dot { display: inline-block; animation: blink 1.2s infinite; }
 .typing .dot:nth-child(2) { animation-delay: 0.2s; }
 .typing .dot:nth-child(3) { animation-delay: 0.4s; }
 @keyframes blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
 
 /* expander */
-[data-testid="stExpander"] {
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    background: #fff;
-}
-[data-testid="stExpander"] summary { direction: rtl; color: var(--ink); font-weight: 700; }
+[data-testid="stExpander"] summary { direction: rtl; font-weight: 600; color: #1f2937; }
 
 .footer {
     direction: rtl;
     text-align: center;
-    color: #94a3b8;
-    font-size: 0.72rem;
+    color: #9ca3af;
+    font-size: 0.7rem;
     margin-top: 2.5rem;
 }
 </style>
@@ -195,8 +135,7 @@ st.markdown("""
 st.markdown("""
 <div class="hero">
   <h1>📄 پرسش‌وپاسخ روی سند</h1>
-  <div class="sub">بازیابی ترکیبی · بازنویسی پرسش · مسیریابی هوشمند · چانک والد-فرزند</div>
-  <span class="pill">مبتنی بر سند مبحث نهم مقررات ملی ساختمان</span>
+  <div class="sub">بازیابی ترکیبی · بازنویسی پرسش · مسیریابی · چانک والد-فرزند</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -237,7 +176,7 @@ def _render_sources(retrieved: list[dict]) -> None:
             pages = f"{c.get('page_start', '?')}–{c.get('page_end', '?')}"
             st.markdown(
                 f'<div class="src-card">'
-                f'<span class="pages">صفحات {pages}</span>'
+                f'<div class="pages">صفحات {pages}</div>'
                 f'<div class="txt">{txt[:450]}{"…" if len(txt) > 450 else ""}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
