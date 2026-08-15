@@ -5,10 +5,14 @@ purpose — ingestion is a separate offline step (`python -m persian_rag.ingest`
 Run with:
     streamlit run app.py
 """
+import json
 import time
+import uuid
+from datetime import datetime, timezone
 
 import streamlit as st
 
+from persian_rag.config import CFG
 from persian_rag.rag import run_query_stream
 
 st.set_page_config(page_title="پرسش‌وپاسخ سند", page_icon="📄", layout="centered")
@@ -220,6 +224,16 @@ def _fmt_elapsed(secs: float) -> str:
     return f"{int(secs // 60)} دقیقه و {int(secs % 60)} ثانیه"
 
 
+def _log_query(entry: dict) -> None:
+    """Append one JSON line per query to QUERY_LOG_PATH (visible on the server)."""
+    try:
+        entry.setdefault("ts", datetime.now(timezone.utc).isoformat())
+        with open(CFG.query_log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except OSError:
+        pass  # logging must never break the chat
+
+
 def _route_badge(meta: dict) -> str:
     route = meta.get("route") or "—"
     intent = meta.get("intent") or ""
@@ -293,11 +307,24 @@ if user_input:
                 "intent": state.get("intent"),
                 "retrieved": state.get("retrieved", []),
             }
+            error = None
         except Exception as e:
             answer = f"⚠️ خطا در پردازش پرسش: `{e}`"
             meta = {}
+            error = str(e)
 
-        elapsed = _fmt_elapsed(time.time() - t0)
+        elapsed_s = round(time.time() - t0, 1)
+        st.session_state.setdefault("session_id", uuid.uuid4().hex[:8])
+        _log_query({
+            "session": st.session_state.session_id,
+            "query": user_input,
+            "route": meta.get("route"),
+            "intent": meta.get("intent"),
+            "elapsed_s": elapsed_s,
+            "chunks": len(meta.get("retrieved", [])),
+            "error": error,
+        })
+
         bar.empty()
         tracker.empty()
         if meta.get("route") and show_route:
@@ -306,7 +333,7 @@ if user_input:
         if meta.get("retrieved") and show_sources:
             _render_sources(meta["retrieved"])
         if not isinstance(answer, str) or not answer.startswith("⚠️"):
-            st.caption(f"⏱ زمان پاسخ: {elapsed}")
+            st.caption(f"⏱ زمان پاسخ: {_fmt_elapsed(elapsed_s)}")
 
     st.session_state.messages.append({"role": "assistant", "content": answer, "meta": meta})
 
