@@ -224,6 +224,18 @@ def _fmt_elapsed(secs: float) -> str:
     return f"{int(secs // 60)} دقیقه و {int(secs % 60)} ثانیه"
 
 
+def _math_clean(text: str) -> str:
+    """Convert LaTeX math delimiters to Streamlit-compatible ones:
+    \\(...\\) -> $...$, \\[...\\] -> $$...$$. Leaves existing $..$ untouched."""
+    import re
+
+    # display: \[ ... \]
+    text = re.sub(r"\\\[\s*(.*?)\s*\\\]", lambda m: "$$\n" + m.group(1) + "\n$$", text, flags=re.S)
+    # inline: \( ... \)
+    text = re.sub(r"\\\(\s*(.*?)\s*\\\)", lambda m: "$" + m.group(1) + "$", text, flags=re.S)
+    return text
+
+
 def _log_query(entry: dict) -> None:
     """Append one JSON line per query to QUERY_LOG_PATH (visible on the server)."""
     try:
@@ -261,7 +273,7 @@ def _render_message(msg: dict) -> None:
             meta = msg.get("meta") or {}
             if show_route and meta.get("route"):
                 st.markdown(_route_badge(meta), unsafe_allow_html=True)
-            st.markdown(msg["content"])
+            st.markdown(_math_clean(msg["content"]))
             if show_sources and meta.get("retrieved"):
                 _render_sources(meta["retrieved"])
         else:
@@ -329,7 +341,7 @@ if user_input:
         tracker.empty()
         if meta.get("route") and show_route:
             st.markdown(_route_badge(meta), unsafe_allow_html=True)
-        st.markdown(answer)
+        st.markdown(_math_clean(answer))
         if meta.get("retrieved") and show_sources:
             _render_sources(meta["retrieved"])
         if not isinstance(answer, str) or not answer.startswith("⚠️"):
